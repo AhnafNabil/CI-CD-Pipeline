@@ -1,6 +1,10 @@
-# CI-CD-Pipeline
+# Deploying a Node.js application with Docker and GitHub Actions
 
-## Github Action Workflow
+This repository contains a simple Node.js application that is deployed using Docker and GitHub Actions. The workflow ensures that the application is built, tested, and deployed to Docker Hub.
+
+## Workflow
+
+The workflow is defined in the `.github/workflows/deploy.yml` file. It consists of two jobs: `build` and `deploy`.
 
 ```bash
 name: CI/CD Pipeline
@@ -28,6 +32,7 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/my-app:latest
+
   deploy:
     runs-on: ubuntu-latest
     needs: build
@@ -41,47 +46,94 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - run: docker-compose pull
-      - run: docker-compose -f docker-compose.yml up -d
+      - name: Pull Docker Images
+        run: docker-compose pull
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Run Docker Compose
+        run: docker-compose -f docker-compose.yml up -d
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
 ```
 
-### **CI/CD Pipeline Summary**
+### Build Job
 
-This GitHub Actions workflow automates the **build**, **test**, and **deployment** process for a Node.js application using Docker.
+The `build` job runs on the `ubuntu-latest` runner. It performs the following steps:
 
-### **Workflow Triggers**
-- **Trigger**: Runs whenever there is a `push` to the `main` branch.
+- Checkout the code
+- Set up Node.js
+- Install dependencies
+- Run tests
+- Build the Docker image
+- Push the Docker image to Docker Hub
 
+### Deploy Job
 
-### **Jobs**
+The `deploy` job runs on the `ubuntu-latest` runner. It performs the following steps:
 
-#### **1. Build Job**
-- **Runs on**: `ubuntu-latest` (GitHub-hosted runner).
-- **Purpose**: Build, test, and package the application into a Docker image.
-- **Steps**:
-   1. **Checkout Code**: Pulls the latest code from the repository.
-   2. **Setup Node.js**: Installs Node.js version `18` and caches dependencies for faster builds.
-   3. **Install Dependencies**: Installs project dependencies using `npm ci`.
-   4. **Run Tests**: Executes unit tests using `npm test`.
-   5. **Setup Docker Buildx**: Enables advanced Docker builds using Buildx.
-   6. **Login to Docker Hub**: Authenticates to Docker Hub using secrets:
-      - `DOCKER_USERNAME`  
-      - `DOCKER_PASSWORD`
-   7. **Build and Push Docker Image**:
-      - Builds the Docker image using the current context (`.`).
-      - Tags the image as `DOCKER_USERNAME/my-app:latest`.
-      - Pushes the image to Docker Hub.
+- Checkout the code
+- Pull the latest images
+- Run the Docker Compose file   
 
-#### **2. Deploy Job**
-- **Runs on**: `ubuntu-latest` (GitHub-hosted runner).
-- **Dependencies**: Requires the `build` job to complete successfully.
-- **Purpose**: Deploy the Docker image using Docker Compose.
-- **Steps**:
-   1. **Checkout Code**: Pulls the latest code from the repository.
-   2. **Install Docker Compose**: Installs `docker-compose` on the runner.
-   3. **Login to Docker Hub**: Authenticates to Docker Hub.
-   4. **Pull Docker Image**: Pulls the updated Docker image from Docker Hub.
-   5. **Deploy with Docker Compose**:
-      - Starts or updates the services defined in the `docker-compose.yml` file.
-      - Runs the containers in detached mode (`-d`).
+## Docker Compose File
+
+The `docker-compose.yml` file is located in the root of the repository. It defines the services and networks for the application.
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    image: ${DOCKER_USERNAME}/my-app:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+``` 
+
+This file defines the `app` service, which runs the Node.js application, and the `app-network` network, which allows the services to communicate with each other.
+
+## Required Secrets and Environment Variables
+
+### **Secrets**
+These secrets must be set in the GitHub repository under **Settings > Secrets and variables > Actions**:
+
+1. **`DOCKER_USERNAME`**  
+   - **Purpose**:  
+     Used to authenticate with Docker Hub during the `docker/login-action` and as part of the image name in the `docker-compose` file.
+   - **Value**:  
+     Your Docker Hub username.  
+     Example: `mydockerhubusername`
+
+2. **`DOCKER_PASSWORD`**  
+   - **Purpose**:  
+     Used as the password/token for Docker Hub authentication.
+   - **Value**:  
+     Your Docker Hub password or personal access token.  
+     Example: `mypassword123` or `ghp_xxx...` (token)
+
+## Environment Variables in the Workflow
+The following environment variable is explicitly passed during the `docker-compose` steps:
+
+1. **`DOCKER_USERNAME`**  
+   - **Purpose**:  
+     Ensures the `docker-compose` file can reference the username dynamically for image pulling and running.  
+     Example: If your `docker-compose.yml` has the following:
+
+     ```yaml
+     services:
+       app:
+         image: "${DOCKER_USERNAME}/my-app:latest"
+     ```
+     Then `DOCKER_USERNAME` will dynamically replace the placeholder during runtime.
+
 
