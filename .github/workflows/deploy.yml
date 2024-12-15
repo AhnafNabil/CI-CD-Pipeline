@@ -1,7 +1,9 @@
 name: CI/CD Pipeline
+
 on:
   push:
     branches: [main]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,18 +20,20 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Debug Docker Username
+        run: echo "DOCKER_USERNAME is ${{ secrets.DOCKER_USERNAME }}"
       - uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/my-app:latest
+
   deploy:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v3
-      - name: Install Docker Compose
-        run: |
+      - run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
       - uses: docker/login-action@v2
