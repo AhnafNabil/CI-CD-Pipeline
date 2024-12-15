@@ -73,7 +73,11 @@ The `deploy` job runs on the `ubuntu-latest` runner. It performs the following s
 
 - Checkout the code
 - Pull the latest images
-- Run the Docker Compose file   
+- Run the Docker Compose file
+
+![alt text](./images/image.png)
+
+![alt text](./images/image-1.png)
 
 ## Docker Compose File
 
